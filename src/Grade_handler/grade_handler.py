@@ -6,12 +6,15 @@ import re
 
 BASE_PATH = "./data"
 class grade_handler():
-    def __init__(self, std: Grade2gpa, grade: str) -> None:
+    def __init__(self, std: Grade2gpa, grade: str,save:bool=True) -> None:
         self.std = std
         self._loadgrade(grade)
         self.terms= set()
         self.skip = False
         self.term_course={}
+        self.term_gap = {}
+        self.save_path = os.path.join(grade.endswith(".csv") and grade.replace(".csv","") or grade)
+        self.save_flag = save
         self._grade_filter()
 
     
@@ -45,6 +48,13 @@ class grade_handler():
             total_credit += credit
             gpa = self._percentage_gpa(course)
             total_gpa += gpa * credit
+        term_name = term[0]['学期']
+
+        if term_name not in self.term_gap:
+            self.term_gap[term_name] = {"gpa": 0, "credit": 0}
+        
+        self.term_gap[term_name]["gpa"] = total_gpa / total_credit
+        self.term_gap[term_name]["credit"] = total_credit
         return total_gpa / total_credit
     
     def _percentage_gpa(self, course) -> float:
@@ -76,4 +86,13 @@ class grade_handler():
 
         for term_courses in self.term_course.values():
             gpa = self._get_gpa(term_courses)
-            print(f"the gpa of term {term_courses[0]['学期']} is {gpa}")
+        if self.save_flag:
+            self.save_gpa()
+
+    def save_gpa(self):
+        with open(self.save_path+"_gpa.csv","w") as f:
+            writer = csv.writer(f)
+            writer.writerow(["学期","GPA","总学分"])
+            for term in self.term_gap.keys():
+                writer.writerow([term,self.term_gap[term]["gpa"],self.term_gap[term]["credit"]])
+        print("GPA has been saved to gpa.csv")
