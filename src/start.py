@@ -23,4 +23,4 @@ if __name__ == "__main__":
     transition = Grade2gpa(std_file)
     handler = grade_handler(transition, grade_file)
     transition.show()
-    handler._grade_filter()
+    handler.get_gpa()
