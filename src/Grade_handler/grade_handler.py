@@ -11,6 +11,7 @@ class grade_handler():
         self._loadgrade(grade)
         self.terms= set()
         self.skip = False
+        self.term_course={}
         self._grade_filter()
 
     
@@ -20,43 +21,39 @@ class grade_handler():
     
     def _grade_filter(self):
         self.ungraded = []
+        filtered_grade = []
         for course in self.grade:
             if course["评估状态"] == "未参加评估":
                 print(f"the course {course['课程名称']} in {course['学期']}has not been evaluated")
                 self.ungraded.append(course)
+            elif course["成绩"] == "合格" or course["成绩"] == "不合格" or course["成绩"] == "W":
+                print(f"the course {course['课程名称']} in {course['学期']} has been removed")
+            else:
+                filtered_grade.append(course)
             self.terms.add(course["学期"])
+        self.grade = filtered_grade
         print(f"do you want to skip the unevaluated courses? (y/n)")
         choice = input() 
         if choice == "y":
             self.skip = True
-        for course in self.grade:
-            if course["成绩"] == "合格"|"不合格":
-                self.grade.remove(course)
-                print(f"the course {course['课程名称']} in {course['学期']} has been removed")
        
-    def _get_gpa(self, term: str) -> float:
+    def _get_gpa(self, term: list) -> float:
         total_credit = 0
         total_gpa = 0
-        for course in self.grade:
-            if course["学期"] == term:
-                credit = course["学分"]
-                grade = course["成绩"]
-                if grade in self.std.transition_dict["Letter Grade System"].keys():
-                    gpa = self.std.transition_dict["Letter Grade System"][grade]
-                elif grade in self.std.transition_dict["Five-point Scale"].keys():
-                    gpa = self.std.transition_dict["Five-point Scale"][grade]
-                else:
-                    gpa = self._percentage_gpa(course)
-                total_credit += credit
-                total_gpa += credit * gpa
+        for course in term:
+            credit = float(course["学分"])
+            total_credit += credit
+            gpa = self._percentage_gpa(course)
+            total_gpa += gpa * credit
         return total_gpa / total_credit
     
     def _percentage_gpa(self, course) -> float:
         transition_table = self.std.pec_trans_table
+        if course["成绩"] == "补考合格":
+            return transition_table["补考合格"]
+        grade = float(course["成绩"])
         for bound in transition_table.keys():
-            if course["成绩"] <=59:
-                return 0
-            if course["成绩"] >= bound[0] and course["成绩"] <= bound[1]:
+            if grade >= bound[0] and grade <= bound[1]:
                 return transition_table[bound]
     
     def mege_ungraded(self):
@@ -72,5 +69,11 @@ class grade_handler():
                                 break
     def get_gpa(self):
         self.mege_ungraded()
-        for term in self.terms:
-            print(f"the gpa of term {term} is {self._get_gpa(term)}")
+        for course in self.grade:
+            for term in self.terms:
+                if course["学期"] == term:
+                    self.term_course.setdefault(term,[]).append(course)
+
+        for term_courses in self.term_course.values():
+            gpa = self._get_gpa(term_courses)
+            print(f"the gpa of term {term_courses[0]['学期']} is {gpa}")
